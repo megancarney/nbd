@@ -132,7 +132,7 @@ For some processes, data shows the process itself as the responsible process. So
 
 We can hunt around in the process tree for a better answer. There are a few ways to do this.
 
-Look for an executable in the thread that _isn't_ a built-in executable. This means looking through the process tree for a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`. Our search on the SIEM looks something like this.
+**Look for an executable in the thread that _isn't_ a built-in executable.** This means looking through the process tree for a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`. Our search on the SIEM looks something like this.
 ```
 event.name:"process"
 exec_chain.thread_uuid:("<thread_uuid>")
@@ -142,7 +142,7 @@ NOT (subject.process.name:("/usr/*" || "/bin/*" || "/sbin/*"))
 GROUPBY TERM subject.process.name
 ```
 
-Look for a responsible process in the thread that _isn't_ a built-in executable. Same query as above, but instead we're looking at the responsible process field. Our search on the SIEM looks something like this.
+**Look for a responsible process in the thread that _isn't_ a built-in executable.** Same query as above, but instead we're looking at the responsible process field. Our search on the SIEM looks something like this.
 ```
 event.name:"process"
 exec_chain.thread_uuid:("<thread_uuid>")
@@ -152,22 +152,199 @@ NOT (subject.responsible_process_name:("/usr/*" || "/bin/*" || "/sbin/*"))
 GROUPBY TERM subject.responsible_process_name
 ```
 
-Look for an open command similar to `open /Applications/Google Chrome.app` or a shell command similar to `/bin/sh ashellscript.sh`. Our search on the SIEM would be something like this.
+**Look for an open command or a shell command running a shell script.** These are commands like `open /Applications/Google Chrome.app` or `/bin/sh ashellscript.sh`. Our search on the SIEM would be something like this.
 ```
 event.name:"process"
 exec_chain.thread_uuid:("<thread_uuid>")
 host.hostname:("<hostname>")
-subject.responsible_process_name:"/usr/bin/open" ||
-process.command_line:/\/bin\/[a-z]{0,5}sh .*/
+(subject.responsible_process_name:"/usr/bin/open" ||
+process.command_line:/\/bin\/[a-z]{0,5}sh .*/)
 GROUPBY TERM process.command_line
 ```
 
 
-### The code
+### The psuedocode
 
-#### High-level psuedocode
+I would love to release a tool that you can just plug into your own SIEM, but that's probably not realistic. Each SIEM has its own query language. And the field names for the data in your SIEM vary based on what tools you're using to collect process data and how many of those fields you've converted to ECS. Instead, I'm going to release psuedocde you should be able to adapt to your environment.
 
-Define list of commands we care
+#### More detailed but still high-level psuedocode
+
+```
+for each command:
+    baseline = normalize(instances of cmd in baseline (maybe with flag restrictions))
+    sample = normalize(instances of cmd in sample (maybe with flag restrictions))
+
+    for each result in sample:
+       seen in the baseline?
+       seen with the same responsible process in the baseline?*
+       if no to either question: enrich with context and write record to SIEM
+
+    for each result in sample:
+      seen in the baseline ignoring arguments?
+      seen with the same resp. process in the baseline ignoring arguments?*
+      if no to either question: enrich with context and write record to SIEM
+
+* if responsible process == self, look in process tree for a better answer
+```
+
+ndb.py
+```
+```
+
+config.py
+```
+cmds_list = []
+cmds_list.append(
+    {
+        "command": "chmod",
+        "process_arg_restrictions": 'process.args:("+x" || "777")'
+    }
+)
+cmds_list.append(
+    {
+        "command": "chflags",
+        "process_arg_restrictions": 'process.args:("hidden")'
+    }
+)
+cmds_list.append(
+    {
+        "command": "getpwuid",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "hdiutil",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "ifconfig",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "ioreg",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "killall",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "kextload",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "kextunload",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "kextstat",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "kmutil",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "mdfind",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "pidinfo",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "security",
+        "process_arg_restrictions": 'process.args:("add-trusted-cert" && "-d" && "-r" && "trustRoot" && "-k")',
+    }
+)
+cmds_list.append(
+    {
+        "command": "security",
+        "process_arg_restrictions": 'process.args:("default-keychain")'
+    }
+)
+cmds_list.append(
+    {
+        "command": "scutil",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "sw_vers",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "sysctl",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "system_profiler",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "touch",
+        "process_arg_restrictions": 'process.args:("-t")'
+    }
+)
+cmds_list.append(
+    {
+        "command": "uname",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "uuidgen",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "whoami",
+        "process_arg_restrictions": ""
+    }
+)
+cmds_list.append(
+    {
+        "command": "xattr",
+        "process_arg_restrictions": '(process.args:("com.apple.quarantine" && "-d") OR process.args:("-c"))'
+    }
+)
+cmds_list.append(
+    {
+        "command": "xcode-select",
+        "process_arg_restrictions": ""
+    }
+)
+```
 
 
 ## Method 2 - Abnormally busy application trees
