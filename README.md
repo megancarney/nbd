@@ -3,9 +3,276 @@ Featured in "Dropping Lotus Bombs: ATT&CK in macOS Purple Team Operations" #OBTS
 
 ## How does NBD detect OceanLotus activity?
 
+The examples below are for Method 1 - LOOBin/LOLBin detection using baselines.
+
+NBD is essentially a filtering and enrichment pipeline. We filter out what we know to be normal. Then we take possibly suspicious command executions and enrich them with context:
+- How common is this command in our environment?
+- How common is this responsible process in our environment?
+- What does VirusTotal say about the responsible process?
+
 ### IOC: Use of touch to backdate files
 
 OceanLotus uses the `touch -t` command to backdate files. Unfortunately, we can't alert everytime we see `touch` run with the `-t` flag. There's too much background activity.
+
+Endpoint Security Framework (ESF) records for OceanLotus `touch -t`
+```
+# Responsible process
+{
+  "event":"ES_EVENT_TYPE_NOTIFY_EXEC",
+  "process": {
+    "team_id":"",
+    "ruid":501,
+    "uid":501,
+    "euid":501,
+    "tty":"None",
+    "ppid":1,
+    "path":"/bin/bash",
+    "responsible_pid":5718,
+    "username":"loonicorn",
+    "command":" /bin/bash /private/tmp/conkylan.app/Contents/MacOS/conkylan",
+    "pid":5718,
+    "original_ppid":1,
+    "pgid":5718,
+    "session_id":1
+  }
+  "timestamp":"2023-09-14 12:17:42"
+}
+
+# Command
+{
+  "event":"ES_EVENT_TYPE_NOTIFY_EXEC",
+  "process": {
+    "team_id":"",
+    "ruid":501,
+    "uid":501,
+    "euid":501,
+    "tty":"None",
+    "ppid":5718,
+    "path":"/usr/bin/touch",
+    "responsible_pid":5718,
+    "username":"loonicorn",
+    "command":" touch -t 1910071234 /Users/loonicorn/Library/LaunchAgents/com.apple.launchpad.plist",
+    "pid":5758,
+    "original_ppid":5718,
+    "pgid":5718,
+    "session_id":1
+    },
+  "timestamp":"2023-09-14 12:17:43"
+}
+```
+
+#### Compare to baseline
+
+This exact `touch` command isn't in the baseline for normal activity. NBD would identify the command as anomalous and writes a record like this to the SIEM.
+
+```
+{
+  "process": {
+    "normalized_command_line": "touch -t 1910071234 /*/Library/LaunchAgents/com.apple.launchpad.plist",
+    "responsible": {
+      "name": "bash",
+      "pid": 5718,
+      "executable": "/bin/bash",
+      "hash": {
+        "sha1": "c2995561f3026a09ce262abdac8775499b01ac36"
+      }
+    },
+    "name": "touch",
+    "pid": 5758,
+    "command_line": "touch -t 1910071234 /Users/loonicorn/Library/LaunchAgents/com.apple.launchpad.plist"
+  },
+  "rule": {
+    "meta": {
+      "reason_for_alert": "not seen in baseline",
+      "arg_restrictions": "process.args:(\"-t\")"
+    },
+    "name": "rare recon command",
+  },
+  "stats": {
+    "processes_seen_in_baseline": 0,
+    "processes_seen_in_sample": 1,
+    "other_machines_with_responsible_file": 7787,
+    "other_machines_with_responsible_hash": 3923
+  },
+  "host": {
+    "hostname": "loonicorn",
+    "os": {
+      "type": "macos"
+    }
+  },
+  "virustotal": {
+    "malicious": 0,
+    "signature_info": {
+      "signers": "Apple Inc.; Apple Inc.; Apple Inc.",
+      "verified": "Valid"
+    },
+    "tags": "checks-hostname,multi-arch,64bits,macho,known-distributor,arm,legit,signed"
+  },
+}
+```
+
+#### Build an alert
+
+Here's what a simple rule might look like in your SIEM:
+```
+INDEX enriched_commands
+process.name:”touch"
+```
+
+Despite everything NBD filters out, you might need to do some filtering.
+```
+# Filter out a specific process causing false positives
+INDEX enriched_commands
+process.name:”touch"
+NOT process.responsible.executable:"REDACTED"
+
+# Filter based on rarity in your environment
+INDEX enriched_commands
+process.name:”touch"
+(stats.other_machines_with_responsible_file:<10 ||
+ stats.other_machines_with_responsible_file:<10)
+```
+
+### IOC: Use of chmod to add the executable bit
+
+Endpoint Security Framework (ESF) records for OceanLotus `chmod +x`
+```
+# Responsible process
+{
+  "event":"ES_EVENT_TYPE_NOTIFY_EXEC",
+  "process":{
+    "team_id":"",
+    "ruid":501,
+    "uid":501,
+    "euid":501,
+    "tty":"None",
+    "ppid":5760,
+    "path":"/Users/loonicorn/Library/WebKit/com.apple.launchpad",
+    "responsible_pid":5765,
+    "username":"loonicorn",
+    "command":" /Users/loonicorn/Library/WebKit/com.apple.launchpad",
+    "pid":5765,
+    "original_ppid":5760,
+    "pgid":5718,
+    "session_id":1
+  },
+  "timestamp":"2023-09-14 12:17:43"
+}
+
+# Command process
+{
+  "event":"ES_EVENT_TYPE_NOTIFY_EXEC",
+  "process":{
+    "team_id":"",
+    "ruid":501,
+    "uid":501,
+    "euid":501,
+    "tty":"None",
+    "ppid":5765,
+    "path":"/bin/chmod",
+    "responsible_pid":5765,
+    "username":"loonicorn",
+    "command":" chmod +x /Users/loonicorn/Library/WebKit/osx.download",
+    "pid":7915,
+    "original_ppid":5765,
+    "pgid":5718,
+    "session_id":1
+  },
+  "timestamp":"2023-09-14 12:24:42"
+}
+```
+
+#### Compare to baseline
+
+NBD would identify this command as anomalous because this exact command doesn't exist in the baseline. The record in the SIEM would be similar to below. We're assuming that this variant of OceanLotus (`/Users/loonicorn/Library/WebKit/com.apple.launchpad`) is unknown to VT and unsigned.
+
+```
+{
+  "process": {
+    "normalized_command_line": "chmod +x /*/Library/WebKit/osx.download",
+    "responsible": {
+      "code_signature": {},
+      "name": "com.apple.launchpad",
+      "executable": "/Users/loonicorn/Library/WebKit/com.apple.launchpad"
+      "pid": 5765,
+      "hash": {
+        "sha1": "redacted"
+      },
+    },
+    "name": "chmod",
+    "pid": 7915,
+    "command_line": "chmod +x /Users/loonicorn/Library/WebKit/osx.download"
+  },
+  "rule": {
+    "meta": { 
+      "use_case": "use_case1",
+      "reason_for_alert": "not seen in the baseline period",
+      "arg_restrictions": "process.args:(\"+x\" || \"777\")",
+    },
+  "name": "rare recon command",
+  "stats": {
+    "processes_seen_in_baseline": 0,
+    "processes_seen_in_sample": 3,
+    "other_machines_with_responsible_file": 0,
+    "other_machines_with_responsible_hash": 0
+  },
+  "host": {
+    "hostname": "loonicorn",
+    "os": {
+      "type": "macos"
+    }
+  },
+  "virustotal": {
+    "message": "Request error: 404 Client Error: Not Found for ",
+    "signature_info": {}
+  }
+}
+```
+
+#### Build an alert
+
+Unfortunately, there is a lot of background activity for `chmod +x`. You will probably need to filter more aggresively than we did in the previous example.
+
+Some options - you will need to mix and match according to your environment.
+```
+# Only alert when the command is completely new
+INDEX enriched_commands
+process.name:"chmod"
+rule.meta.reason_for_alert:"not seen in the baseline period"
+
+# Only alert when the command is completely new
+# excluding background activity not filtered by NBD
+INDEX enriched_commands
+process.name:"chmod"
+rule.meta.reason_for_alert:"not seen in the baseline period"
+NOT process.command_line:(
+  "redacted1"
+  || "redacted2"
+)
+
+# Only alert when the responsible file/hash are unique
+INDEX enriched_commands
+process.name:"chmod"
+rule.meta.reason_for_alert:"not seen in the baseline period"
+(
+  stats.other_machines_with_responsible_file:0
+  && stats.other_machines_with_responsible_hash:0
+)
+(
+  virustotal.message:*404*
+  || virustotal.malicious:>0
+)
+
+# Only alert when VT doesn't know the responsible process hash
+# or knows the responsible hash is malicious
+INDEX enriched_commands
+process.name:"chmod"
+rule.meta.reason_for_alert:"not seen in the baseline period"
+(
+  virustotal.message:*404*
+  || virustotal.malicious:>0
+)
+```
 
 ## Method 1 - LOOBin/LOLBin detection using baselines
 
@@ -137,42 +404,17 @@ For some processes, data shows the process itself as the responsible process. So
 | ------------- | ------------- |
 | `/usr/sbin/system_profiler -nospawn -xml SPConfigurationProfileDataType -detailLevel full`  | `/usr/sbin/system_profiler`  |
 
-We can hunt around in the process tree for a better answer. There are a few ways to do this.
+We can hunt around in the process tree for a better answer. There are a few ways to do this. I've include sample searches in the psuedocode section below.
 
-**Look for an executable in the thread that _isn't_ a built-in executable.** This means looking through the process tree for a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`. Our search on the SIEM looks something like this.
-```
-event.name:"process"
-exec_chain.thread_uuid:("<thread_uuid>")
-host.hostname:("<hostname>")
-subject.process.name:"/*"
-NOT (subject.process.name:("/usr/*" || "/bin/*" || "/sbin/*"))
-GROUPBY TERM subject.process.name
-```
+**Look for an executable in the thread that _isn't_ a built-in executable.** This means looking through the process tree for a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`.
 
-**Look for a responsible process in the thread that _isn't_ a built-in executable.** Same query as above, but instead we're looking at the responsible process field. Our search on the SIEM looks something like this.
-```
-event.name:"process"
-exec_chain.thread_uuid:("<thread_uuid>")
-host.hostname:("<hostname>")
-subject.responsible_process_name:"/*"
-NOT (subject.responsible_process_name:("/usr/*" || "/bin/*" || "/sbin/*"))
-GROUPBY TERM subject.responsible_process_name
-```
+**Look for a responsible process in the thread that _isn't_ a built-in executable.** Same query as above, but instead we're looking at the responsible process field.
 
-**Look for an open command or a shell command running a shell script.** These are commands like `open /Applications/Google Chrome.app` or `/bin/sh ashellscript.sh`. Our search on the SIEM would be something like this.
-```
-event.name:"process"
-exec_chain.thread_uuid:("<thread_uuid>")
-host.hostname:("<hostname>")
-(subject.responsible_process_name:"/usr/bin/open" ||
-process.command_line:/\/bin\/[a-z]{0,5}sh .*/)
-GROUPBY TERM process.command_line
-```
-
+**Look for an open command or a shell command running a shell script.** These are commands like `open /Applications/Google Chrome.app` or `/bin/sh ashellscript.sh`.
 
 ### The psuedocode
 
-I would love to release a tool that you can just plug into your own SIEM, but that's probably not realistic. Each SIEM has its own query language. And the field names for the data in your SIEM vary based on what tools you're using to collect process data and how many of those fields you've converted to ECS. Instead, I'm going to release psuedocde you should be able to adapt to your environment.
+I would love to release a tool that you can just plug into your own SIEM, but that would be a very big project. Each SIEM has its own query language. And the field names for the data in your SIEM vary based on what tools you're using to collect process data and how many of those fields you've converted to ECS. Instead, I'm going to release psuedcode you should be able to adapt to your environment.
 
 #### More detailed but still high-level psuedocode
 
@@ -230,6 +472,36 @@ re.sub(“\/tmp\/ksinstallaction\.[a-z0-9]{10}/","/tmp/ksinstallaction.*/",new_c
 
 UUIDs
 re.sub(“-uuid [a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}”,"-uuid *",new_command_line)
+```
+
+Sample searches for finding a responsible process
+```
+# Look for an executable in the thread that isn't a built-in executable
+# Find a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`.
+event.name:"process"
+exec_chain.thread_uuid:("<thread_uuid>")
+host.hostname:("<hostname>")
+subject.process.name:"/*"
+NOT (subject.process.name:("/usr/*" || "/bin/*" || "/sbin/*"))
+GROUPBY TERM subject.process.name
+
+# Look for a responsible process in the thread that isn't a built-in executable.
+# Same query as above, but instead we're looking at the responsible process field.
+event.name:"process"
+exec_chain.thread_uuid:("<thread_uuid>")
+host.hostname:("<hostname>")
+subject.responsible_process_name:"/*"
+NOT (subject.responsible_process_name:("/usr/*" || "/bin/*" || "/sbin/*"))
+GROUPBY TERM subject.responsible_process_name
+
+# Look for an open command or a shell command running a shell script.
+# Commands like `open /Applications/Google Chrome.app` or `/bin/sh ashellscript.sh`.
+event.name:"process"
+exec_chain.thread_uuid:("<thread_uuid>")
+host.hostname:("<hostname>")
+(subject.responsible_process_name:"/usr/bin/open" ||
+process.command_line:/\/bin\/[a-z]{0,5}sh .*/)
+GROUPBY TERM process.command_line
 ```
 
 config.py
