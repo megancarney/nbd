@@ -1,5 +1,12 @@
 # Normalized Baseline Detection (NBD)
 Featured in "Dropping Lotus Bombs: ATT&CK in macOS Purple Team Operations" #OBTSv6
+
+## How does NBD detect OceanLotus activity?
+
+### IOC: Use of touch to backdate files
+
+OceanLotus uses the `touch -t` command to backdate files. Unfortunately, we can't alert everytime we see `touch` run with the `-t` flag. There's too much background activity.
+
 ## Method 1 - LOOBin/LOLBin detection using baselines
 
 When attackers use executables that already exist on the host like `touch` or `security`, malicious activity blends in with normal system activity. OceanLotus, Bundlore, XCSSET, Shlayer and many other pieces of malware use LOOBins. Some good sources for how LOOBins are used are the [LOOBins Github](https://github.com/infosecB/LOOBins) and [Sentinel One's](https://www.sentinelone.com/labs/20-common-tools-techniques-used-by-macos-threat-actors-malware/) breakdown. 
@@ -78,7 +85,7 @@ cmds_list.append(
         "process_arg_restrictions": '(process.args:("com.apple.quarantine" && "-d") OR process.args:("-c"))'
     }
 )
-... and many more
+... full list is in psuedocode section below
 ```
 
 ##### When to ignore arguments entirely
@@ -111,7 +118,7 @@ Command-lines often include directory names that are functionaly similar but don
 | ------------- | ------------- |
 | `xattr -d -r com.apple.quarantine /Users/auser/Applications/Google Chrome.app`  | `xattr -d -r com.apple.quarantine /Users/anotheruser/Applications/Google Chrome.app` |
 
-These two commands are functionally the same, the only difference is the username. We shouldn't label this as anomalous activity.
+These two commands are functionally the same, the only difference is the username. We shouldn't treat this as new activity.
 
 Here's another example of an temporary directory created by `/usr/sbin/installer` when .pkg files are installed.
 
@@ -187,8 +194,42 @@ for each command:
 * if responsible process == self, look in process tree for a better answer
 ```
 
-ndb.py
+Normalizations (you will probably need to add some of your own to this list)
 ```
+Responsible processes:
+User directories
+re.sub("\/users\/<yourusernameregex>\/", "/*/", responsible_process)
+
+AppTranslocation
+re.sub(“\/private\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/apptranslocation\/[a-z0-9\-]{36}\/[a-z]{1}\/","/*/",new_responsible_process)
+
+Temp dirs created by installer
+re.sub(“\/private\/tmp\/pkinstallsandbox\.[a-z0-9]{6}\/","/*/",new_responsible_process)
+re.sub(“\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/“,”/*/",new_responsible_process)
+
+System extension activity
+re.sub("\/library\/systemextensions\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/","/library/systemextensions/*/",new_responsible_process)
+
+Command-lines:
+User directories
+re.sub("\/users\/<yourusernameregex>\/", "/*/", command_line)
+
+IPv4 and IPv6 addresses
+re.sub(" [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}", " *", new_command_line)
+re.sub(" ([a-f0-9:]+:+)+[a-f0-9]+", " *", new_command_line)
+
+Temp dirs created by installer
+re.sub(“\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/“,”/*/“,new_command_line)
+
+Interface names in ifconfig commands (most common way they would appear, doesn’t cover everything)
+re.sub("ifconfig [a-z0-9]{3,10} ", "ifconfig * ", new_command_line)
+
+Google Chrome stuff
+re.sub(“\/tmp\/ksdownloadaction\.[a-z0-9]{10}/“,"/tmp/ksdownloadaction.*/",new_command_line)
+re.sub(“\/tmp\/ksinstallaction\.[a-z0-9]{10}/","/tmp/ksinstallaction.*/",new_command_line)
+
+UUIDs
+re.sub(“-uuid [a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}”,"-uuid *",new_command_line)
 ```
 
 config.py
@@ -348,4 +389,7 @@ cmds_list.append(
 
 
 ## Method 2 - Abnormally busy application trees
+Nothing to publish here yet :)
+
 ## Method 3 - Application process trees running unexpected executables
+Nothing to publish here yet :)
