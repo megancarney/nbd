@@ -199,7 +199,6 @@ NBD would identify this command as anomalous because this exact command doesn't 
   },
   "rule": {
     "meta": { 
-      "use_case": "use_case1",
       "reason_for_alert": "not seen in the baseline period",
       "arg_restrictions": "process.args:(\"+x\" || \"777\")",
     },
