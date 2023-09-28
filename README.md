@@ -129,8 +129,7 @@ NOT process.responsible.executable:"REDACTED"
 # Filter based on rarity in your environment
 INDEX enriched_commands
 process.name:”touch"
-(stats.other_machines_with_responsible_file:<10 ||
- stats.other_machines_with_responsible_file:<10)
+stats.processes_seen_in_sample:<10
 ```
 
 ### IOC: Use of chmod to add the executable bit
@@ -250,7 +249,15 @@ NOT process.command_line:(
   || "redacted2"
 )
 
+# Only alert when the responsible file/hash are rare
+INDEX enriched_commands
+process.name:"chmod"
+(stats.other_machines_with_responsible_file:<10 ||
+ stats.other_machines_with_responsible_file:<10)
+
+
 # Only alert when the responsible file/hash are unique
+# and the command is completely new
 INDEX enriched_commands
 process.name:"chmod"
 rule.meta.reason_for_alert:"not seen in the baseline period"
@@ -258,16 +265,11 @@ rule.meta.reason_for_alert:"not seen in the baseline period"
   stats.other_machines_with_responsible_file:0
   && stats.other_machines_with_responsible_hash:0
 )
-(
-  virustotal.message:*404*
-  || virustotal.malicious:>0
-)
 
 # Only alert when VT doesn't know the responsible process hash
 # or knows the responsible hash is malicious
 INDEX enriched_commands
 process.name:"chmod"
-rule.meta.reason_for_alert:"not seen in the baseline period"
 (
   virustotal.message:*404*
   || virustotal.malicious:>0
