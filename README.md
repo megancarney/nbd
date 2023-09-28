@@ -439,14 +439,18 @@ User directories
 re.sub("\/users\/<yourusernameregex>\/", "/*/", responsible_process)
 
 AppTranslocation
-re.sub(“\/private\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/apptranslocation\/[a-z0-9\-]{36}\/[a-z]{1}\/","/*/",new_responsible_process)
+re.sub(
+  “\/private\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/apptranslocation\/[a-z0-9\-]{36}\/[a-z]{1}\/",
+  "/*/",new_responsible_process)
 
 Temp dirs created by installer
 re.sub(“\/private\/tmp\/pkinstallsandbox\.[a-z0-9]{6}\/","/*/",new_responsible_process)
 re.sub(“\/var\/folders\/[a-z0-9_]{2}\/[a-z0-9_]{30}\/[a-z]{1}\/“,”/*/",new_responsible_process)
 
 System extension activity
-re.sub("\/library\/systemextensions\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/","/library/systemextensions/*/",new_responsible_process)
+re.sub(
+  "\/library\/systemextensions\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\/",
+  "/library/systemextensions/*/",new_responsible_process)
 
 Command-lines:
 User directories
