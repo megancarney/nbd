@@ -400,7 +400,7 @@ For some processes, data shows the process itself as the responsible process. So
 | ------------- | ------------- |
 | `/usr/sbin/system_profiler -nospawn -xml SPConfigurationProfileDataType -detailLevel full`  | `/usr/sbin/system_profiler`  |
 
-We can hunt around in the process tree for a better answer. There are a few ways to do this. I've include sample searches in the psuedocode section below.
+We can hunt around in the process tree for a better answer. There are a few ways to do this. I've included sample searches in the psuedocode section below.
 
 **Look for an executable in the thread that _isn't_ a built-in executable.** This means looking through the process tree for a process that doesn't start with `/usr/` or `/bin/*` or `/sbin/*`.
 
