@@ -125,11 +125,6 @@ Despite everything NBD filters out, you might need to do some filtering.
 INDEX enriched_commands
 process.name:”touch"
 NOT process.responsible.executable:"REDACTED"
-
-# Filter based on rarity in your environment
-INDEX enriched_commands
-process.name:”touch"
-stats.processes_seen_in_sample:<10
 ```
 
 ### IOC: Use of chmod to add the executable bit
