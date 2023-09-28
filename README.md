@@ -322,7 +322,7 @@ list of commands
 for each command in list:
     baseline_results = instances of cmd in baseline
     sample_results = instances of cmd in sample period
-    for each results in sample_result:
+    for each result in sample_result:
         is this command new? (did we see this command in the baseline?)
         is this responsible process/command pair new? (did we see this pair in the baseline?)
         if yes to either question: write record to SIEM
