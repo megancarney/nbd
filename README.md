@@ -89,10 +89,10 @@ This exact `touch` command isn't in the baseline for normal activity. NBD identi
     "name": "rare recon command",
   },
   "stats": {
-    "processes_seen_in_baseline": 2065,
-    "processes_seen_in_sample": 64,
-    "other_machines_with_responsible_file": 7787,
-    "other_machines_with_responsible_hash": 3923
+    "processes_seen_in_baseline": 1116,
+    "processes_seen_in_sample": 1000,
+    "other_machines_with_responsible_file": 7628,
+    "other_machines_with_responsible_hash": 6955
   },
   "host": {
     "hostname": "loonicorn",
