@@ -268,6 +268,12 @@ process.name:"chmod"
   virustotal.message:*404*
   || virustotal.malicious:>0
 )
+
+# Only alert if this responsible process
+# is new to this host
+INDEX enriched_commands
+process.name:"chmod"
+stats.processes_seen_in_baseline:0
 ```
 
 ## Method 1 - LOOBin/LOLBin detection using baselines
