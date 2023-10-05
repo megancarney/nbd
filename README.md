@@ -272,7 +272,7 @@ process.name:"chmod"
 )
 
 # Only alert if this responsible process
-# is new to this host
+# is new to the environment
 INDEX enriched_commands
 process.name:"chmod"
 stats.processes_seen_in_baseline:0
