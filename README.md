@@ -88,6 +88,7 @@ This exact `touch` command isn't in the baseline for normal activity. NBD identi
     },
     "name": "rare recon command",
   },
+# The stats section refers to the RESPONSIBLE PROCESS
   "stats": {
     "processes_seen_in_baseline": 1116,
     "processes_seen_in_sample": 1000,
@@ -203,6 +204,7 @@ NBD would identify this command as anomalous because this exact command doesn't 
       "arg_restrictions": "process.args:(\"+x\" || \"777\")",
     },
   "name": "rare recon command",
+# The stats section refers to the RESPONSIBLE PROCESS
   "stats": {
     "processes_seen_in_baseline": 0,
     "processes_seen_in_sample": 3,
