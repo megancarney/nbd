@@ -249,7 +249,7 @@ NOT process.command_line:(
 INDEX enriched_commands
 process.name:"chmod"
 (stats.other_machines_with_responsible_file:<10 ||
- stats.other_machines_with_responsible_file:<10)
+ stats.other_machines_with_responsible_hash:<10)
 
 
 # Only alert when the responsible file/hash are unique
