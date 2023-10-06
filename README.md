@@ -262,6 +262,14 @@ rule.meta.reason_for_alert:"not seen in the baseline period"
   && stats.other_machines_with_responsible_hash:0
 )
 
+# Only alert when the responsible file/hash are unique
+# AND were not seen on this host during the baseline
+INDEX enriched_commands
+process.name:"chmod"
+stats.other_machines_with_responsible_file:0
+stats.other_machines_with_responsible_hash:0
+stats.processes_seen_in_baseline:0
+
 # Only alert when VT doesn't know the responsible process hash
 # or knows the responsible hash is malicious
 INDEX enriched_commands
