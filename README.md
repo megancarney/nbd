@@ -88,10 +88,9 @@ This exact `touch` command isn't in the baseline for normal activity. NBD identi
     },
     "name": "rare recon command",
   },
-# The stats section refers to the RESPONSIBLE PROCESS
   "stats": {
-    "processes_seen_in_baseline": 1116,
-    "processes_seen_in_sample": 1000,
+    "commands_seen_in_baseline": 1116,
+    "commands_seen_in_sample": 1000,
     "other_machines_with_responsible_file": 7628,
     "other_machines_with_responsible_hash": 6955
   },
@@ -204,10 +203,9 @@ NBD would identify this command as anomalous because this exact command doesn't 
       "arg_restrictions": "process.args:(\"+x\" || \"777\")",
     },
   "name": "rare recon command",
-# The stats section refers to the RESPONSIBLE PROCESS
   "stats": {
-    "processes_seen_in_baseline": 0,
-    "processes_seen_in_sample": 3,
+    "commands_seen_in_baseline": 0,
+    "commands_seen_in_sample": 3,
     "other_machines_with_responsible_file": 0,
     "other_machines_with_responsible_hash": 0
   },
@@ -268,7 +266,7 @@ INDEX enriched_commands
 process.name:"chmod"
 stats.other_machines_with_responsible_file:0
 stats.other_machines_with_responsible_hash:0
-stats.processes_seen_in_baseline:0
+stats.commands_seen_in_baseline:0
 
 # Only alert when VT doesn't know the responsible process hash
 # or knows the responsible hash is malicious
@@ -283,7 +281,7 @@ process.name:"chmod"
 # is new to the environment
 INDEX enriched_commands
 process.name:"chmod"
-stats.processes_seen_in_baseline:0
+stats.commands_seen_in_baseline:0
 ```
 
 ## Method 1 - LOOBin/LOLBin detection using baselines
