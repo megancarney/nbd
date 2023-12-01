@@ -63,7 +63,7 @@ Endpoint Security Framework (ESF) records for OceanLotus `touch -t`
 
 #### Compare to baseline
 
-This exact `touch` command isn't in the baseline for normal activity. NBD identifies the command as anomalous and writes a record like this to the SIEM. The stats section refers to the responsible process.
+This exact `touch` command isn't in the baseline for normal activity. NBD identifies the command as anomalous and writes a record like this to the SIEM.
 
 ```
 {
